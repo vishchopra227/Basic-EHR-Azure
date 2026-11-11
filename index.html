@@ -1,0 +1,283 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Basic EHR - Azure</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 25px;
+  font-family: Arial, sans-serif;
+  background: #eef4f8;
+  color: #203447;
+}
+
+main {
+  max-width: 950px;
+  margin: auto;
+  padding: 28px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px #00000012;
+}
+
+h1 { color: #146b83; }
+
+label {
+  display: block;
+  margin-top: 15px;
+  font-weight: bold;
+}
+
+input, textarea {
+  width: 100%;
+  padding: 11px;
+  margin-top: 7px;
+  border: 1px solid #aab8c2;
+  border-radius: 6px;
+  font: inherit;
+}
+
+button {
+  padding: 11px 18px;
+  margin-top: 15px;
+  border: 0;
+  border-radius: 6px;
+  background: #146b83;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover { background: #0e5063; }
+
+.delete {
+  background: #c0392b;
+  margin: 0;
+}
+
+#message { min-height: 24px; }
+
+table {
+  width: 100%;
+  margin-top: 15px;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 11px;
+  border: 1px solid #ccd7df;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+th { background: #e7f2f6; }
+
+.search { margin-top: 25px; }
+
+footer {
+  margin-top: 25px;
+  color: #526575;
+  font-size: 13px;
+}
+
+@media(max-width:600px) {
+  body { padding: 10px; }
+  main { padding: 16px; }
+}
+</style>
+</head>
+
+<body>
+<main>
+
+<h1>Electronic Health Record</h1>
+<p>Basic EHR demonstration hosted on Microsoft Azure.</p>
+<p><strong>Version: 2.0</strong></p>
+
+<h2>Patient Entry Form</h2>
+
+<form id="patientForm">
+
+<label>Patient ID</label>
+<input id="patientId" maxlength="30"
+placeholder="Example: P001" required>
+
+<label>Patient Name</label>
+<input id="patientName" maxlength="100"
+placeholder="Example: Demo Patient" required>
+
+<label>Age</label>
+<input id="age" type="number"
+min="0" max="120" step="1" required>
+
+<label>Clinical Notes</label>
+<textarea id="notes" rows="3"
+maxlength="500" placeholder="Enter clinical notes"
+required></textarea>
+
+<button type="submit">Add Patient Record</button>
+</form>
+
+<p id="message" role="status"></p>
+
+<h2>Patient Records</h2>
+
+<p>Total Records: <strong id="totalCount">0</strong></p>
+<p>Matching Records: <strong id="matchingCount">0</strong></p>
+
+<div class="search">
+<label>Search Patient</label>
+<input id="search" placeholder="Search by ID or name">
+</div>
+
+<div style="overflow-x:auto">
+<table>
+<thead>
+<tr>
+<th>Patient ID</th>
+<th>Name</th>
+<th>Age</th>
+<th>Clinical Notes</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="records"></tbody>
+</table>
+</div>
+
+<footer>
+Educational EHR Demonstration | Microsoft Azure
+</footer>
+
+</main>
+
+<script>
+const form = document.getElementById("patientForm");
+const recordsElement = document.getElementById("records");
+const message = document.getElementById("message");
+
+let patients = JSON.parse(
+  localStorage.getItem("ehrPatients") || "[]"
+);
+
+function saveRecords() {
+  localStorage.setItem("ehrPatients", JSON.stringify(patients));
+}
+
+function renderRecords() {
+  recordsElement.replaceChildren();
+
+  const query = document.getElementById("search")
+    .value.trim().toLowerCase();
+
+  const filtered = patients.filter(patient =>
+    patient.id.toLowerCase().includes(query) ||
+    patient.name.toLowerCase().includes(query)
+  );
+
+  document.getElementById("totalCount").textContent =
+    patients.length;
+
+  document.getElementById("matchingCount").textContent =
+    filtered.length;
+
+  filtered.forEach(patient => {
+    const row = document.createElement("tr");
+
+    [patient.id, patient.name, patient.age, patient.notes]
+      .forEach(value => {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.appendChild(cell);
+      });
+
+    const actionCell = document.createElement("td");
+    const deleteButton = document.createElement("button");
+
+    deleteButton.textContent = "Delete";
+    deleteButton.className = "delete";
+
+    deleteButton.addEventListener("click", () => {
+      if (confirm("Delete this patient record?")) {
+        patients = patients.filter(p => p.uid !== patient.uid);
+        saveRecords();
+        renderRecords();
+        message.textContent = "Record deleted successfully.";
+      }
+    });
+
+    actionCell.appendChild(deleteButton);
+    row.appendChild(actionCell);
+    recordsElement.appendChild(row);
+  });
+}
+
+form.addEventListener("submit", function(event) {
+  event.preventDefault();
+
+  const id = document.getElementById("patientId")
+    .value.trim().toUpperCase();
+
+  const name = document.getElementById("patientName")
+    .value.trim();
+
+  const ageValue = document.getElementById("age").value;
+
+  const notes = document.getElementById("notes")
+    .value.trim();
+
+  const age = Number(ageValue);
+
+  if (!id || !name || !ageValue || !notes) {
+    message.textContent = "Please complete every field.";
+    return;
+  }
+
+  if (/\s/.test(id)) {
+    message.textContent = "Patient ID cannot contain spaces.";
+    return;
+  }
+
+  if (!Number.isInteger(age) || age < 0 || age > 120) {
+    message.textContent = "Age must be an integer between 0 and 120.";
+    return;
+  }
+
+  const duplicate = patients.some(
+    patient => patient.id.toUpperCase() === id
+  );
+
+  if (duplicate) {
+    message.textContent = "Duplicate Patient ID! Please use another ID.";
+    return;
+  }
+
+  patients.push({
+    uid: crypto.randomUUID(),
+    id,
+    name,
+    age,
+    notes
+  });
+
+  saveRecords();
+  renderRecords();
+
+  message.textContent = "Patient record added successfully.";
+  form.reset();
+});
+
+document.getElementById("search")
+  .addEventListener("input", renderRecords);
+
+renderRecords();
+</script>
+
+</body>
+</html>
