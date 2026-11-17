@@ -4,7 +4,7 @@ A simple, lightweight **Electronic Health Record (EHR)** web application develop
 
 This project demonstrates how a basic healthcare record management system can be designed, developed, and deployed using modern web technologies and cloud hosting.
 
-## 🌐 Live Demo
+## 🌐 Live Demo 
 
 **[Visit the EHR Web Application](https://mango-glacier-0704e7800.3.azurestaticapps.net/)**
 
